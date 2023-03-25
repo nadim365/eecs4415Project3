@@ -1,2 +1,4 @@
 spark/app/spark-commands/spark-commands.ipynb
-/spark
+/spark/*
+spark/app/spark-commands/spark-commands.ipynb
+.gitignore
