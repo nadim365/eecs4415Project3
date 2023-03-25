@@ -7,8 +7,7 @@
 # Made for: EECS 4415 - Big Data Systems (Department of Electrical Engineering and Computer Science, York University)
 # Author: Changyuan Lin
 
-
-version: '2'
+version: "2"
 
 services:
   spark:
@@ -20,9 +19,9 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     ports:
-      - '8080:8080'
-      - '4040:4040'
-      - '4041:4041'
+      - "8080:8080"
+      - "4040:4040"
+      - "4041:4041"
     volumes:
       - ./app:/app
   spark-worker:
@@ -37,24 +36,24 @@ services:
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
     ports:
-      - '28081:8081'
-      - '24040:4040'
-      - '24041:4041'
+      - "28081:8081"
+      - "24040:4040"
+      - "24041:4041"
     volumes:
       - ./app:/app
   data-source:
     image: eecs4415/python
     environment:
-      - TOKEN=dummyvalue
+      - TOKEN=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
     volumes:
       - ./app:/app
-    command: python3.9 -u /app/nine-multiples/data_source.py
+    command: python3.9 -u /app/data_source.py
   webapp:
     image: eecs4415/python
     volumes:
       - ./app:/app
     ports:
-      - '5000:5000'
+      - "5000:5000"
     command: /app/nine-multiples/run-flask.sh
   redis:
     image: redis
