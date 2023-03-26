@@ -54,6 +54,6 @@ services:
       - ./app:/app
     ports:
       - "5000:5000"
-    command: /app/nine-multiples/run-flask.sh
+    command: /app/run-flask.sh
   redis:
     image: redis
