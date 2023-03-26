@@ -38,12 +38,11 @@ while True:
         ).json()
         print("-----------------------Python---------------------------")
         for item in res_py['items']:
-            data = f'name:{item["full_name"]}, time:{item["pushed_at"]}, stars:{item["stargazers_count"]}, desc:{item["description"]}, lang:{item["language"]}\n'
+            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
             conn.send(data.encode())
             print(
                 f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
             )
-        time.sleep(15)
 
         # get request for Java repos and print required fields
         res_java = requests.get(
@@ -53,14 +52,14 @@ while True:
         ).json()
         print("------------------------Java--------------------------")
         for item in res_java['items']:
-            data = f'name:{item["full_name"]},time:{item["pushed_at"]},stars:{item["stargazers_count"]},desc:{item["description"]},lang:{item["language"]}\n'
+            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
             conn.send(data.encode())
             print(
                 f'full_name: {item["full_name"]}\tpushed_at: {item["pushed_at"]}\tstargazers_count: {item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
             )
-        time.sleep(15)
 
         # create a new request for C repos and print required fields
+
         res_c = requests.get(
             url_c, headers={
                 "Authorization": "token " + str(token)
@@ -68,11 +67,13 @@ while True:
         ).json()
         print("-------------------------C---------------------------")
         for item in res_c['items']:
-            data = f'name:{item["full_name"]}, time:{item["pushed_at"]}, stars:{item["stargazers_count"]}, desc:{item["description"]}, lang:{item["language"]}\n'
+            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
             conn.send(data.encode())
             print(
                 f'full_name: {item["full_name"]}\tpushed_at: {item["pushed_at"]}\tstargazers_count: {item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
             )
+            
+        time.sleep(15)
     except KeyboardInterrupt:
         print("Keyboard Interrupt")
         s.shutdown(socket.SHUT_RD)
