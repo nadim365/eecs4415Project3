@@ -12,6 +12,7 @@
 import sys
 import requests
 import json
+import datetime
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.sql import Row, SparkSession
@@ -29,6 +30,20 @@ def send_df_to_dashboard(df):
     data = df.toPandas().to_dict('list')
     requests.post(url, json=data)
 
+def process_rdd(time, rdd):
+    print("---------------- %s ----------------" % str(time))
+    try:
+        sql_context = get_sql_context_instance(rdd.context)
+        row_rdd = rdd.map(lambda repo: Row(lang=repo[0], count=repo[1]))
+        results_df = sql_context.createDataFrame(row_rdd)
+        results_df.createOrReplaceTempView("repos")
+        new_results_df = sql_context.sql("select lang, count from repos")
+        new_results_df.show()
+    except ValueError:
+        print("Waiting for data...")
+    except:
+        e = sys.exc_info()[0]
+
 if __name__ == '__main__':
     DATA_SOURCE_IP = 'data-source'
     DATA_SOURCE_PORT = 9999
@@ -38,6 +53,13 @@ if __name__ == '__main__':
     ssc.checkpoint('checkpoint_GitHubSearch')
     data = ssc.socketTextStream(DATA_SOURCE_IP, DATA_SOURCE_PORT)
     repos = data.flatMap(lambda repo: [repo.split('\t')])
-    counts = repos.map(lambda repo: ('python' if repo[4].lower() == 'python' else ( 'java' if repo[4].lower() == 'java' else 'c'), 1)).reduceByKey(lambda a, b: a+b).updateStateByKey(aggregate_count)
+    counts = repos.map(lambda repo: ('python' if repo[4].lower() == 'python' else ( 'java' if repo[4].lower() == 'java' else 'c'), 1)).reduceByKey(lambda a, b: a+b)
+    #computing the number of collected repos with changes pushed during the last 60 seconds for all the repositories
+    recent = repos.map(lambda repo: ("recent" if datetime.datetime.now() - datetime.timedelta(seconds=60) < repo[1] <= datetime.datetime.now() else "old", 1)).reduceByKey(lambda a, b: a+b)
+    windowedCounts = repos.map(lambda repo: ('python' if repo[4].lower() == 'python' else ( 'java' if repo[4].lower() == 'java' else 'c'), 1)).reduceByKeyAndWindow(lambda x, y: x + y, lambda x, y: x - y, 60, 60)
+    aggregate_counts = counts.updateStateByKey(aggregate_count)
+    aggregate_counts.foreachRDD(process_rdd)
+    aggregate_counts.pprint()
+    windowedCounts.pprint()
     ssc.start()
     ssc.awaitTermination()
