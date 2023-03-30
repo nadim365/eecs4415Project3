@@ -4,14 +4,12 @@
  This search API returns a json file that contains a list (items), each element is a dictionary that is comopsed of many key-value pairs.
  the fields full_name, pushed_at, stargazers_count , and the description are processed using the json library.
 """
-
-
 import os
 import requests
 import socket
 import json
 import time
-
+# check for duplicates from the repos collected
 url_python = "https://api.github.com/search/repositories?q=+language:Python&sort=updated&order=desc&per_page=50"
 url_java = "https://api.github.com/search/repositories?q=+language:Java&sort=updated&order=desc&per_page=50"
 url_c = "https://api.github.com/search/repositories?q=+language:C&sort=updated&order=desc&per_page=50"
@@ -28,51 +26,59 @@ print("Waiting for TCP connection...")
 # if the connection is accepted, proceed
 conn, addr = s.accept()
 print("Connected... Starting sending data.")
-while True:
-    try:
-        # get request for python repos and print required fields
-        res_py = requests.get(
-            url_python, headers={
-                "Authorization": "token "+ str(token)
+# create a set to store the repo ids and check for duplicates
+repo_id = set()
+
+
+def send_calls(conn, res):
+    for item in res['items']:
+        if item['id'] in repo_id:
+            print(f'duplicate: {item["id"]} ')
+            continue
+        else:
+            repo_id.add(item['id'])
+            data = {
+                "full_name": item["full_name"],
+                "pushed_at": item["pushed_at"],
+                "stargazers_count": item["stargazers_count"],
+                "description": item["description"],
+                "language": item["language"]
             }
-        ).json()
-        print("-----------------------Python---------------------------")
-        for item in res_py['items']:
-            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
-            conn.send(data.encode())
+            conn.send((json.dumps(data) + '\n').encode())
             print(
                 f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
             )
 
+
+while True:
+    try:
+        # get request for python repos and print required fields
+        print("-----------------------Python---------------------------")
+        res_py = requests.get(
+            url_python, headers={
+                "Authorization": "token " + str(token)
+            }
+        ).json()
+        send_calls(conn, res_py)
+
         # get request for Java repos and print required fields
+        print("------------------------Java--------------------------")
         res_java = requests.get(
             url_java, headers={
                 "Authorization": "token " + str(token)
             }
         ).json()
-        print("------------------------Java--------------------------")
-        for item in res_java['items']:
-            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
-            conn.send(data.encode())
-            print(
-                f'full_name: {item["full_name"]}\tpushed_at: {item["pushed_at"]}\tstargazers_count: {item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
-            )
+        send_calls(conn, res_java)
 
         # create a new request for C repos and print required fields
-
+        print("------------------------C--------------------------")
         res_c = requests.get(
             url_c, headers={
                 "Authorization": "token " + str(token)
             }
         ).json()
-        print("-------------------------C---------------------------")
-        for item in res_c['items']:
-            data = f'{item["full_name"]}\t{item["pushed_at"]}\t{item["stargazers_count"]}\t{item["description"]}\t{item["language"]}\n'
-            conn.send(data.encode())
-            print(
-                f'full_name: {item["full_name"]}\tpushed_at: {item["pushed_at"]}\tstargazers_count: {item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
-            )
-            
+        send_calls(conn, res_c)
+
         time.sleep(15)
     except KeyboardInterrupt:
         print("Keyboard Interrupt")
