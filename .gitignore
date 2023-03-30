@@ -2,3 +2,5 @@ spark/app/spark-commands/spark-commands.ipynb
 /spark/*
 spark/app/spark-commands/spark-commands.ipynb
 .gitignore
+streaming/app/test.py
+streaming/app/res.txt
