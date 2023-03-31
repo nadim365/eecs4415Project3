@@ -21,6 +21,8 @@ from pyspark.sql import Row, SparkSession
 def aggregate_count(new_values, total_sum):
     return sum(new_values) + (total_sum or 0)
 
+def aggregate_avg(new_values, total_avg):
+    return (float(sum(new_values) + (total_avg or 0))) / 2.0
 
 def get_sql_context_instance(spark_context):
     if ('sqlContextSingletonInstance' not in globals()):
@@ -34,21 +36,50 @@ def send_df_to_dashboard(df):
     requests.post(url, json=data)
 
 
-def process_rdd(time, rdd):
+def process_rdd_avg(time, rdd):
+    print('---------------- average stars collected since start at time: %s ----------------' % str(time))
+    try:
+        sql_context = get_sql_context_instance(rdd.context)
+        row_rdd = rdd.map(lambda repo: Row(
+            Language=repo[0], Average_Stars=repo[1]))
+        results_df = sql_context.createDataFrame(row_rdd)
+        results_df.createOrReplaceTempView("stars")
+        results_df.show()
+        #new_results_df = sql_context.sql('select Language, AVG(Average_Stars) from stars group by Language')
+        #new_results_df.show()
+    except ValueError:
+        print("Waiting for data...")
+    except:
+        e = sys.exc_info()[0]
+
+
+def process_rdd_sum(time, rdd):
     print("---------------- aggregate count of repos collected since start at time: %s ----------------" % str(time))
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(lang=repo[0], count=repo[1]))
         results_df = sql_context.createDataFrame(row_rdd)
-        results_df.createOrReplaceTempView("repos")
+        results_df.createOrReplaceTempView("counts")
         results_df.show()
-        # new_results_df = sql_context.sql("select lang, count from repos")
+        # new_results_df = sql_context.sql("select lang, count from counts")
         # new_results_df.show()
     except ValueError:
         print("Waiting for data...")
     except:
         e = sys.exc_info()[0]
 
+def process_rdd_time(time, rdd):
+    print('---------------- Repos that are old and recent for current batch(60s) at: %s ----------------' % str(time))
+    try:
+        sql_context = get_sql_context_instance(rdd.context)
+        row_rdd = rdd.map(lambda repo: Row(Age=repo[0], Count=repo[1]))
+        results_df = sql_context.createDataFrame(row_rdd)
+        results_df.createOrReplaceTempView("Age")
+        results_df.show()
+    except ValueError:
+        print("Waiting for data...")
+    except:
+        e = sys.exc_info()[0]
 
 if __name__ == '__main__':
     DATA_SOURCE_IP = 'data-source'
@@ -59,14 +90,24 @@ if __name__ == '__main__':
     ssc.checkpoint('checkpoint_GitHubSearch')
     data = ssc.socketTextStream(DATA_SOURCE_IP, DATA_SOURCE_PORT)
     repos = data.map(lambda repo: json.loads(repo))
+
+    # requirement 1 : total number of collected repos since start for each language (Python, Java, C)
     counts = repos.map(
         lambda repo: (
             repo['language'], 1
         )
     ).reduceByKey(lambda x, y: x + y).updateStateByKey(aggregate_count)
+
+    # requirement 2 : number of collected repos with changes pushed during the last 60 seconds for all repos
     recent = repos.map(lambda repo: ("old" if (datetime.datetime.utcnow() - datetime.datetime.strptime(
         repo['pushed_at'], "%Y-%m-%dT%H:%M:%SZ")).total_seconds() > 60 else "recent", 1)).reduceByKey(lambda a, b: a+b)
-    counts.foreachRDD(process_rdd)
-    recent.pprint()
+
+    # requirement 3 : average number of stars of all the collected repos since the start for each language
+    stars = repos.map(lambda repo: (repo['language'], int(repo['stargazers_count']))).reduceByKey( lambda x, y: x + y).updateStateByKey(aggregate_avg)
+
+    # printing the analysis results to the console and sending the results to the dashboard
+    counts.foreachRDD(process_rdd_sum)
+    stars.foreachRDD(process_rdd_avg)
+    recent.foreachRDD(process_rdd_time)
     ssc.start()
     ssc.awaitTermination()
