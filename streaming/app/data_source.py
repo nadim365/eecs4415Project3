@@ -5,11 +5,13 @@
  the fields full_name, pushed_at, stargazers_count , and the description are processed using the json library.
 """
 import os
+import re
 import requests
 import socket
 import json
 import time
 # check for duplicates from the repos collected
+languages = ['Python', 'Java', 'C']
 url_python = "https://api.github.com/search/repositories?q=+language:Python&sort=updated&order=desc&per_page=50"
 url_java = "https://api.github.com/search/repositories?q=+language:Java&sort=updated&order=desc&per_page=50"
 url_c = "https://api.github.com/search/repositories?q=+language:C&sort=updated&order=desc&per_page=50"
@@ -31,23 +33,30 @@ repo_id = set()
 
 
 def send_calls(conn, res):
-    for item in res['items']:
-        if item['id'] in repo_id:
-            print(f'duplicate: {item["id"]} ')
-            continue
-        else:
-            repo_id.add(item['id'])
-            data = {
-                "full_name": item["full_name"],
-                "pushed_at": item["pushed_at"],
-                "stargazers_count": item["stargazers_count"],
-                "description": item["description"],
-                "language": item["language"]
-            }
-            conn.send((json.dumps(data) + '\n').encode())
-            print(
-                f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
-            )
+    if res['items'] is not None:
+            for item in res['items']:
+                if item['id'] in repo_id:
+                    print(f'duplicate: {item["id"]} ')
+                    continue
+                else:
+                    repo_id.add(item['id'])
+                    if item['description'] is not None:
+                        desc: str = item['description']
+                        strip_desc = re.sub('[^a-zA-Z ]', '', desc)
+                        strip_desc = strip_desc.split(' ')
+                    else:
+                        strip_desc = None
+                    data = {
+                        "full_name": item["full_name"],
+                        "pushed_at": item["pushed_at"],
+                        "stargazers_count": item["stargazers_count"],
+                        "description": strip_desc,
+                        "language": item["language"]
+                    }
+                    conn.send((json.dumps(data) + '\n').encode())
+                    print(
+                        f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
+                    )
 
 
 while True:
