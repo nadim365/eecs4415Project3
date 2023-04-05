@@ -44,7 +44,7 @@ services:
   data-source:
     image: eecs4415/python
     environment:
-      - TOKEN=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
+      - TOKEN=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
     volumes:
       - ./app:/app
     command: python3.9 -u /app/data_source.py
