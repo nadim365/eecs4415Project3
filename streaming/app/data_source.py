@@ -10,6 +10,7 @@ import requests
 import socket
 import json
 import time
+import errno
 # check for duplicates from the repos collected
 languages = ['Python', 'Java', 'C']
 url_python = "https://api.github.com/search/repositories?q=+language:Python&sort=updated&order=desc&per_page=50"
@@ -19,7 +20,7 @@ url_c = "https://api.github.com/search/repositories?q=+language:C&sort=updated&o
 token = os.getenv("TOKEN")
 TCP_IP = '0.0.0.0'
 TCP_PORT = 9999
-CONN = None
+conn = None
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((TCP_IP, TCP_PORT))
@@ -34,29 +35,29 @@ repo_id = set()
 
 def send_calls(conn, res):
     if res['items'] is not None:
-            for item in res['items']:
-                if item['id'] in repo_id:
-                    print(f'duplicate: {item["id"]} ')
-                    continue
+        for item in res['items']:
+            if item['id'] in repo_id:
+                print(f'duplicate: {item["id"]} ')
+                continue
+            else:
+                repo_id.add(item['id'])
+                if item['description'] is not None:
+                    desc: str = item['description']
+                    strip_desc = re.sub('[^a-zA-Z ]', '', desc)
+                    strip_desc = strip_desc.split()
                 else:
-                    repo_id.add(item['id'])
-                    if item['description'] is not None:
-                        desc: str = item['description']
-                        strip_desc = re.sub('[^a-zA-Z ]', '', desc)
-                        strip_desc = strip_desc.split(' ')
-                    else:
-                        strip_desc = None
-                    data = {
-                        "full_name": item["full_name"],
-                        "pushed_at": item["pushed_at"],
-                        "stargazers_count": item["stargazers_count"],
-                        "description": strip_desc,
-                        "language": item["language"]
-                    }
-                    conn.send((json.dumps(data) + '\n').encode())
-                    print(
-                        f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
-                    )
+                    strip_desc = []
+                data = {
+                    "full_name": item["full_name"],
+                    "pushed_at": item["pushed_at"],
+                    "stargazers_count": item["stargazers_count"],
+                    "description": strip_desc,
+                    "language": item["language"]
+                }
+                conn.send((json.dumps(data) + '\n').encode())
+                print(
+                    f'full_name:{item["full_name"]}\tpushed_at:{item["pushed_at"]}\tstargazers_count:{item["stargazers_count"]}\tdescription: {item["description"]}\tlanguage:{item["language"]}'
+                )
 
 
 while True:
@@ -67,8 +68,18 @@ while True:
             url_python, headers={
                 "Authorization": "token " + str(token)
             }
-        ).json()
-        send_calls(conn, res_py)
+        )
+        if res_py.ok:
+            print(
+                f'-------------STATUS CODE: {res_py.status_code}-------------'
+            )
+            res_py = res_py.json()
+            send_calls(conn, res_py)
+        else:
+            print(
+                f'-------------STATUS CODE: {res_py.status_code}-------------'
+            )
+            continue
 
         # get request for Java repos and print required fields
         print("------------------------Java--------------------------")
@@ -76,8 +87,18 @@ while True:
             url_java, headers={
                 "Authorization": "token " + str(token)
             }
-        ).json()
-        send_calls(conn, res_java)
+        )
+        if res_java.ok:
+            print(
+                f'-------------STATUS CODE: {res_java.status_code}-------------'
+            )
+            res_java = res_java.json()
+            send_calls(conn, res_java)
+        else:
+            print(
+                f'-------------STATUS CODE: {res_java.status_code}-------------'
+            )
+            continue
 
         # create a new request for C repos and print required fields
         print("------------------------C--------------------------")
@@ -85,8 +106,18 @@ while True:
             url_c, headers={
                 "Authorization": "token " + str(token)
             }
-        ).json()
-        send_calls(conn, res_c)
+        )
+        if res_c.ok:
+            print(
+                f'-------------STATUS CODE: {res_c.status_code}-------------'
+            )
+            res_c = res_c.json()
+            send_calls(conn, res_c)
+        else:
+            print(
+                f'-------------STATUS CODE: {res_c.status_code}-------------'
+            )
+            continue
 
         time.sleep(15)
     except KeyboardInterrupt:
