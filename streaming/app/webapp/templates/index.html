@@ -1,4 +1,19 @@
-<title>A simple dashboard</title>
-<h1>9 multiples: {{isMultipleOf9}}</h1>
-<h1>non-9 multiples: {{notMultipleOf9}}</h1>
-<img src={{url}} alt="Chart" height="auto" width="50%">
+<title>Spark Streaming Dashboard</title>
+<h1>1. Counts of repositories collected for each language:</h1>
+<br />
+<h3>Python: {{py_Counts}}</h3>
+<br />
+<h3>Java: {{java_Counts}}</h3>
+<br />
+<h3>C: {{c_Counts}}</h3>
+<br />
+<h1>2. Repos with Pushes in the last 60s</h1>
+<br />
+<img src="{{url_recents}}" alt="Line Chart" height="auto" width="50%" />
+<br />
+<h1>3. Average number of stars for collected repos for each language</h1>
+<br />
+<h3>language: {{stars_lang}}</h3>
+<br />
+<h3>AVG Stars: {{stars_avg}}</h3>
+<img src="{{url_stars}}" alt="Stars Chart" height="auto" width="50%" />
