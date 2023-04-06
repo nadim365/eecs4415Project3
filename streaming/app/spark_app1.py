@@ -25,18 +25,26 @@ def aggregate_count(new_values, total_sum):
 
 
 def aggregate_avg(new_values, total_avg):
-    return (float(sum(new_values) + (total_avg or 0))) / 2.0
-
-
-def aggregate_top10(new_values, prev_top10):
     count = 0
+    old_stars = 0
+    stars = [repo[0] for repo in new_values]
     counts = [repo[1] for repo in new_values]
-    word = new_values[0]
+    if total_avg:
+        count = total_avg[1]
+        old_stars = total_avg[0]
+    return sum(counts) + count, sum(stars) + old_stars
+
+
+#func for updatestatebykey for top10 words wher we need to keep track of the previous top10 words
+#and the values are of the form ((language, word), count)
+#where the key is the language and the word and the value is the count
+def aggregate_top10_v1(new_values, prev_top10):
+    count = 0
+    counts = [repo for repo in new_values]
     if prev_top10:
-        count = prev_top10[1]
-    else:
-        new_word = word
-    return new_word, sum(counts) + count
+        count = prev_top10
+    return sum(counts) + count
+
 
 
 def get_sql_context_instance(spark_context):
@@ -51,6 +59,30 @@ def send_df_to_dashboard(df):
     requests.post(url, json=data)
 
 
+def send_counts_df_to_dashboard(df):
+    url = 'http://webapp:5000/updateCountsData'
+    data = df.toPandas().to_dict('list')
+    requests.post(url, json=data)
+
+
+def send_recents_df_to_dashboard(df):
+    url = 'http://webapp:5000/updateRecentsData'
+    data = df.toPandas().to_dict('list')
+    requests.post(url, json=data)
+
+
+def send_stars_df_to_dashboard(df):
+    url = 'http://webapp:5000/updateStarsData'
+    data = df.toPandas().to_dict('list')
+    requests.post(url, json=data)
+
+
+def send_top10_df_to_dashboard(df):
+    url = 'http://webapp:5000/updateTop10Data'
+    data = df.toPandas().to_dict('list')
+    requests.post(url, json=data)
+
+
 def process_rdd_avg(time, rdd):
     print('---------------- AVG STARS collected since start at time: %s ----------------' % str(time))
     try:
@@ -60,9 +92,7 @@ def process_rdd_avg(time, rdd):
         results_df = sql_context.createDataFrame(row_rdd)
         results_df.createOrReplaceTempView("stars")
         results_df.show()
-        send_df_to_dashboard(results_df)
-        # new_results_df = sql_context.sql('select Language, AVG(Average_Stars) from stars group by Language')
-        # new_results_df.show()
+        send_stars_df_to_dashboard(results_df)
     except ValueError:
         print("Waiting for data...")
     except:
@@ -78,9 +108,7 @@ def process_rdd_sum(time, rdd):
         results_df = sql_context.createDataFrame(row_rdd)
         results_df.createOrReplaceTempView("counts")
         results_df.show()
-        send_df_to_dashboard(results_df)
-        # new_results_df = sql_context.sql("select lang, count from counts")
-        # new_results_df.show()
+        send_counts_df_to_dashboard(results_df)
     except ValueError:
         print("Waiting for data...")
     except:
@@ -96,7 +124,7 @@ def process_rdd_time(time, rdd):
         results_df = sql_context.createDataFrame(row_rdd)
         results_df.createOrReplaceTempView("Age")
         results_df.show()
-        send_df_to_dashboard(results_df)
+        send_recents_df_to_dashboard(results_df)
     except ValueError:
         print("Waiting for data...")
     except:
@@ -121,7 +149,7 @@ def process_rdd_freq(time, rdd):
         # and dropping the rank column at the end
         results_df.withColumn('rank', row_number().over(window_freq)).filter(
             col('rank') <= 10).drop("rank").show()
-        send_df_to_dashboard(results_df)
+        send_top10_df_to_dashboard(results_df)
     except ValueError:
         print(f'Waiting for data...')
     except:
@@ -164,9 +192,10 @@ if __name__ == '__main__':
     # output of reduceByKey is (language, sum of stars)
     # input for updateStateByKey is (language, sum of stars)
     # output of updateStateByKey is (language, average of stars as float)
-    stars = repos.map(lambda repo: (repo['language'], int(repo['stargazers_count']))) \
-        .reduceByKey(lambda x, y: x + y) \
+    stars = repos.map(lambda repo: (repo['language'], (repo['stargazers_count'], 1))) \
+        .reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1])) \
         .updateStateByKey(aggregate_avg)
+    avg_stars = stars.map(lambda repo: (repo[0], repo[1][0] / repo[1][1]))
 
     # requirement 4 : top 10 most frequent words in the description of all the collected repos since the start of the streaming app for each language
     # flatMapValues output: (language, word)
@@ -183,7 +212,7 @@ if __name__ == '__main__':
 
     # printing the analysis results to the console and sending the results to the dashboard
     counts.foreachRDD(process_rdd_sum)
-    stars.foreachRDD(process_rdd_avg)
+    avg_stars.foreachRDD(process_rdd_avg)
     age.foreachRDD(process_rdd_time)
     words.foreachRDD(process_rdd_freq)
     ssc.start()
