@@ -35,16 +35,15 @@ def aggregate_avg(new_values, total_avg):
     return sum(counts) + count, sum(stars) + old_stars
 
 
-#func for updatestatebykey for top10 words wher we need to keep track of the previous top10 words
-#and the values are of the form ((language, word), count)
-#where the key is the language and the word and the value is the count
+# func for updatestatebykey for top10 words wher we need to keep track of the previous top10 words
+# and the values are of the form ((language, word), count)
+# where the key is the language and the word and the value is the count
 def aggregate_top10_v1(new_values, prev_top10):
     count = 0
     counts = [repo for repo in new_values]
     if prev_top10:
         count = prev_top10
     return sum(counts) + count
-
 
 
 def get_sql_context_instance(spark_context):
@@ -149,7 +148,9 @@ def process_rdd_freq(time, rdd):
         # and dropping the rank column at the end
         results_df.withColumn('rank', row_number().over(window_freq)).filter(
             col('rank') <= 10).drop("rank").show()
-        send_top10_df_to_dashboard(results_df)
+        dash_df = results_df.withColumn('rank', row_number().over(window_freq)).filter(
+            col('rank') <= 10).drop("rank")
+        send_top10_df_to_dashboard(dash_df)
     except ValueError:
         print(f'Waiting for data...')
     except:
@@ -195,7 +196,8 @@ if __name__ == '__main__':
     stars = repos.map(lambda repo: (repo['language'], (repo['stargazers_count'], 1))) \
         .reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1])) \
         .updateStateByKey(aggregate_avg)
-    avg_stars = stars.map(lambda repo: (repo[0], repo[1][0] / repo[1][1]))
+    avg_stars = stars.map(lambda repo: (
+        repo[0], repo[1][0] / repo[1][1] if repo[1][1] != 0 else 0))
 
     # requirement 4 : top 10 most frequent words in the description of all the collected repos since the start of the streaming app for each language
     # flatMapValues output: (language, word)
