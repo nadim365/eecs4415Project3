@@ -12,9 +12,8 @@ The redis database is listening on port 6379.
         sorted from most frequent to least frequent in real-time. The lists are updated every 60 seconds.
 """
 
-import datetime
+from itertools import count
 import time
-from turtle import width
 from flask import Flask, render_template, request, jsonify
 from redis import Redis
 import matplotlib.pyplot as plt
@@ -57,7 +56,9 @@ def update_stars_data():
 def update_top10_data():
     data = request.get_json()
     r = Redis(host='redis', port=6379)
-    r.set('top10', json.dumps(data))
+    # push the top 10 words and their occurrences to a hash in redis for each language
+    r.delete('top10')
+    r.set("top10", json.dumps(data))
     return jsonify({'msg': 'success'})
 
 
@@ -70,14 +71,14 @@ def index():
     recents_python = r.lrange('Python', 0, -1)
     recents_java = r.lrange('Java', 0, -1)
     recents_c = r.lrange('C', 0, -1)
-    # top10 = r.get('top10')
+    top10 = r.get('top10')
     try:
         counts = json.loads(counts)
         stars = json.loads(stars)
         recents_python = [int(i) for i in recents_python]
         recents_java = [int(i) for i in recents_java]
         recents_c = [int(i) for i in recents_c]
-        # top10 = json.loads(top10)
+        top10 = json.loads(top10)
     except TypeError:
         print('Waiting for data from spark streaming app....')
 
@@ -128,7 +129,14 @@ def index():
     plt.clf()
     plt.cla()
 
-    return render_template('index.html', url_recents='/static/images/recents.png', url_stars='/static/images/stars.png', py_Counts=py_Counts, java_Counts=java_Counts, c_Counts=c_Counts, stars_avg=stars_avg, stars_lang=stars_lang)
+    # top 10 words dictionary
+    words_counts = {}
+    for lang, word, count in zip(top10['Language'], top10['Word'], top10['Freq']):
+        if lang not in words_counts:
+            words_counts[lang] = {}
+        words_counts[lang][word] = count
+
+    return render_template('index.html', url_recents='/static/images/recents.png', url_stars='/static/images/stars.png', py_Counts=py_Counts, java_Counts=java_Counts, c_Counts=c_Counts, stars_avg=stars_avg, stars_lang=stars_lang, words_py=words_counts['Python'], words_java=words_counts['Java'], words_c=words_counts['C'])
 
 
 if __name__ == '__main__':
