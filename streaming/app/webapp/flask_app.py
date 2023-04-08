@@ -36,7 +36,6 @@ def update_recents_data():
     r = Redis(host='redis', port=6379)
     # push the recents data of the 3 languages to a list in redis for each language
     for language, count in zip(data['Language'], data['Recents']):
-        # curr_time = datetime.datetime.now().strftime('%H:%M:%S')
         r.lpush(language, int(count))
         # keep the list size to 10
         if r.llen(language) > 10:
@@ -102,12 +101,13 @@ def index():
     # stars chart
     stars_lang = stars['Language']
     stars_avg = stars['Average_Stars']
-    plt.bar(stars_lang, stars_avg, color=[
-            'tab:red', 'tab:green', 'tab:blue'], width=0.5)
+    plt.bar(
+        stars_lang, stars_avg, color=['tab:red', 'tab:green', 'tab:blue'], width=0.5
+    )
     plt.xlabel('Language')
     plt.ylabel('Average Stars')
     plt.title(
-        f'Average Stars of Repositories at time {time.strftime("%H:%M:%S")}')
+        f'Average Stars Since Start at time {time.strftime("%H:%M:%S")}')
     plt.savefig('/app/webapp/static/images/stars.png')
     plt.clf()
     plt.cla()
@@ -120,11 +120,18 @@ def index():
     plt.xlabel('Time')
     plt.ylabel('Count')
     # display current time and the time of the last 10 minutes in descending order more efficiently and clearly with space between the labels without rotation
-    plt.xticks(range(10), [time.strftime("%H:%M:%S", time.localtime(
-        time.time() - i * 60)) for i in range(10)], rotation=45)
+    plt.xticks(
+        range(10),
+        [
+            time.strftime("%H:%M:%S", time.localtime(time.time() - i * 60))
+            for i in range(10)
+        ],
+        rotation=35
+    )
     plt.legend(loc='upper right')
     plt.title(
-        f'Repositories with pushes in last 60s from time {time.strftime("%H:%M:%S")} in last 10 minutes:')
+        f'Repositories with pushes in last 60s from time {time.strftime("%H:%M:%S")} in last 10 minutes:'
+    )
     plt.savefig('/app/webapp/static/images/recents.png')
     plt.clf()
     plt.cla()
@@ -133,10 +140,22 @@ def index():
     words_counts = {}
     for lang, word, count in zip(top10['Language'], top10['Word'], top10['Freq']):
         if lang not in words_counts:
-            words_counts[lang] = {}
-        words_counts[lang][word] = count
+            words_counts[lang] = []
+        words_counts[lang].append((word, count))
 
-    return render_template('index.html', url_recents='/static/images/recents.png', url_stars='/static/images/stars.png', py_Counts=py_Counts, java_Counts=java_Counts, c_Counts=c_Counts, stars_avg=stars_avg, stars_lang=stars_lang, words_py=words_counts['Python'], words_java=words_counts['Java'], words_c=words_counts['C'])
+    return render_template(
+        'index.html',
+        url_recents='/static/images/recents.png',
+        url_stars='/static/images/stars.png',
+        py_Counts=py_Counts,
+        java_Counts=java_Counts,
+        c_Counts=c_Counts,
+        stars_avg=stars_avg,
+        stars_lang=stars_lang,
+        words_py=words_counts['Python'],
+        words_java=words_counts['Java'],
+        words_c=words_counts['C']
+    )
 
 
 if __name__ == '__main__':
