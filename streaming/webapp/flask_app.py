@@ -108,7 +108,7 @@ def index():
     plt.ylabel('Average Stars')
     plt.title(
         f'Average Stars Since Start at time {time.strftime("%H:%M:%S")}')
-    plt.savefig('/app/webapp/static/images/stars.png')
+    plt.savefig('/streaming/webapp/static/images/stars.png')
     plt.clf()
     plt.cla()
 
@@ -132,7 +132,7 @@ def index():
     plt.title(
         f'Repositories with pushes in last 60s from time {time.strftime("%H:%M:%S")} in last 10 minutes:'
     )
-    plt.savefig('/app/webapp/static/images/recents.png')
+    plt.savefig('/streaming/webapp/static/images/recents.png')
     plt.clf()
     plt.cla()
 
