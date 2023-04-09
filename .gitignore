@@ -6,3 +6,4 @@ streaming/app/test.py
 streaming/app/res.txt
 streaming/webapp/static/images/recents.png
 streaming/webapp/static/images/stars.png
+.DS_Store
