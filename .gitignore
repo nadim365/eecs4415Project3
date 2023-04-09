@@ -4,5 +4,5 @@ spark/app/spark-commands/spark-commands.ipynb
 .gitignore
 streaming/app/test.py
 streaming/app/res.txt
-streaming/app/webapp/static/images/recents.png
-streaming/app/webapp/static/images/stars.png
+streaming/webapp/static/images/recents.png
+streaming/webapp/static/images/stars.png
