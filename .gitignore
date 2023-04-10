@@ -7,3 +7,5 @@ streaming/app/res.txt
 streaming/webapp/static/images/recents.png
 streaming/webapp/static/images/stars.png
 .DS_Store
+streaming/webapp/static/images/stars.png
+.vscode/settings.json
