@@ -62,7 +62,8 @@ def send_top10_df_to_dashboard(df):
 
 def process_rdd_avg(time, rdd):
     print(
-        f'---------------- AVG STARS collected since start at time: {str(time)}   timestamp: {str(time.timestamp())}----------------')
+        f'---------------- AVG STARS collected since start at time: {str(time)}   timestamp: {str(time.timestamp())}----------------'
+    )
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(
