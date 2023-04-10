@@ -10,12 +10,13 @@ import requests
 import socket
 import json
 import time
-import errno
 # check for duplicates from the repos collected
 languages = ['Python', 'Java', 'C']
 url_python = "https://api.github.com/search/repositories?q=+language:Python&sort=updated&order=desc&per_page=50"
 url_java = "https://api.github.com/search/repositories?q=+language:Java&sort=updated&order=desc&per_page=50"
 url_c = "https://api.github.com/search/repositories?q=+language:C&sort=updated&order=desc&per_page=50"
+urls = [
+    f'https://api.github.com/search/repositories?q=+language:{lang}&sort=updated&order=desc&per_page=50' for lang in languages]
 
 token = os.getenv("TOKEN")
 TCP_IP = '0.0.0.0'
@@ -38,6 +39,9 @@ def send_calls(conn, res):
         for item in res['items']:
             if item['id'] in repo_id:
                 print(f'duplicate: {item["id"]} ')
+                continue
+            elif item['language'] is None:
+                print(f'no language: {item["id"]} ')
                 continue
             else:
                 repo_id.add(item['id'])
