@@ -13,7 +13,7 @@ import datetime
 import sys
 import requests
 import json
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.sql import Row, SparkSession, Window
 from pyspark.sql.functions import col, row_number
@@ -22,28 +22,6 @@ from operator import add
 
 def aggregate_count(new_values, total_sum):
     return sum(new_values) + (total_sum or 0)
-
-
-def aggregate_avg(new_values, total_avg):
-    count = 0
-    old_stars = 0
-    stars = [repo[0] for repo in new_values]
-    counts = [repo[1] for repo in new_values]
-    if total_avg:
-        count = total_avg[1]
-        old_stars = total_avg[0]
-    return sum(counts) + count, sum(stars) + old_stars
-
-
-# func for updatestatebykey for top10 words wher we need to keep track of the previous top10 words
-# and the values are of the form ((language, word), count)
-# where the key is the language and the word and the value is the count
-def aggregate_top10_v1(new_values, prev_top10):
-    count = 0
-    counts = [repo for repo in new_values]
-    if prev_top10:
-        count = prev_top10
-    return sum(counts) + count
 
 
 def get_sql_context_instance(spark_context):
@@ -83,7 +61,8 @@ def send_top10_df_to_dashboard(df):
 
 
 def process_rdd_avg(time, rdd):
-    print('---------------- AVG STARS collected since start at time: %s ----------------' % str(time))
+    print(
+        f'---------------- AVG STARS collected since start at time: {str(time)}   timestamp: {str(time.timestamp())}----------------')
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(
@@ -100,7 +79,9 @@ def process_rdd_avg(time, rdd):
 
 
 def process_rdd_sum(time, rdd):
-    print("---------------- AGG COUNT of repos collected since start at time: %s ----------------" % str(time))
+    print(
+        f'---------------- AGG COUNT of repos collected since start at TIME: {str(time)}   timestamp: {str(time.timestamp())}----------------'
+    )
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(lang=repo[0], count=repo[1]))
@@ -116,7 +97,9 @@ def process_rdd_sum(time, rdd):
 
 
 def process_rdd_time(time, rdd):
-    print('----------------REPOS with PUSHES IN LAST 60S for current batch(60s) at: %s ----------------' % str(time))
+    print(
+        f'---------------- REPOS with PUSHES IN THE LAST 60s for current batch at TIME: {str(time)}   timestamp: {str(time.timestamp())}----------------'
+    )
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(Language=repo[0], Recents=repo[1]))
@@ -132,7 +115,9 @@ def process_rdd_time(time, rdd):
 
 
 def process_rdd_freq(time, rdd):
-    print('---------------- TOP 10 WORDS in DESCRIPTIONS of REPOS collected since start at time: %s ----------------' % str(time))
+    print(
+        f'---------------- TOP 10 WORDS in DESCRIPTIONS of repos since start at TIME: {str(time)}   timestamp: {str(time.timestamp())}----------------'
+    )
     try:
         sql_context = get_sql_context_instance(rdd.context)
         row_rdd = rdd.map(lambda repo: Row(
@@ -183,21 +168,23 @@ if __name__ == '__main__':
     # output of map function is (language, 1 if pushed_at is within last 60s else 0)
     # input for reduceByKey is (language, 1 if pushed_at is within last 60s else 0)
     # output of reduceByKey is (language, sum of 1 if pushed_at is within last 60s else 0)
-    age = repos.map(lambda repo: (repo['language'], 1 if (datetime.datetime.utcnow(
-    ) - datetime.datetime.strptime(repo['pushed_at'], "%Y-%m-%dT%H:%M:%SZ")).total_seconds() <= 60 else 0)).reduceByKey(add)
+    age = repos.map(lambda repo: (
+        repo['language'], 1 if (datetime.datetime.utcnow() - datetime.datetime.strptime(repo['pushed_at'], "%Y-%m-%dT%H:%M:%SZ")).total_seconds() <= 60 else 0)) \
+        .reduceByKey(add)
 
     # requirement 3 : average number of stars of all the collected repos since the start for each language
     # input for the map function is repo from data stream
     # output of map function is (language, stars)
     # input for reduceByKey is (language, stars)
     # output of reduceByKey is (language, sum of stars)
-    # input for updateStateByKey is (language, sum of stars)
-    # output of updateStateByKey is (language, average of stars as float)
-    stars = repos.map(lambda repo: (repo['language'], (repo['stargazers_count'], 1))) \
-        .reduceByKey(lambda x, y: (x[0] + y[0], x[1] + y[1])) \
-        .updateStateByKey(aggregate_avg)
-    avg_stars = stars.map(lambda repo: (
-        repo[0], repo[1][0] / repo[1][1] if repo[1][1] != 0 else 0))
+    stars = repos.map(lambda repo: (repo['language'], repo['stargazers_count'])) \
+        .reduceByKey(add) \
+        .updateStateByKey(aggregate_count)
+    # output after join: (language, (sum of stars, count of repos))
+    # after applying map function: (language, average of stars as float)
+    avg_stars = counts.join(stars).map(lambda repo: (
+        repo[0], repo[1][0] / repo[1][1] if repo[1][1] != 0 else 0
+    ))
 
     # requirement 4 : top 10 most frequent words in the description of all the collected repos since the start of the streaming app for each language
     # flatMapValues output: (language, word)
