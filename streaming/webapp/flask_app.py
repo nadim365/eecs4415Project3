@@ -79,7 +79,7 @@ def index():
         recents_c = [int(i) for i in recents_c]
         top10 = json.loads(top10)
     except TypeError:
-        print('Waiting for data from spark streaming app....')
+        return 'Waiting for data...'
 
     try:
         py_index = counts['lang'].index('Python')
@@ -117,20 +117,21 @@ def index():
     plt.plot(recents_python, color='tab:blue', label='Python')
     plt.plot(recents_java, color='tab:green', label='Java')
     plt.plot(recents_c, color='tab:orange', label='C')
+    plt.grid()
     plt.xlabel('Time')
     plt.ylabel('Count')
     # display current time and the time of the last 10 minutes in descending order more efficiently and clearly with space between the labels without rotation
     plt.xticks(
         range(10),
         [
-            time.strftime("%H:%M:%S", time.localtime(time.time() - i * 60))
+            time.strftime("%H:%M:%S", time.localtime(time.time() + i * 60))
             for i in range(10)
         ],
         rotation=35
     )
     plt.legend(loc='upper right')
     plt.title(
-        f'Repositories with pushes in last 60s from time {time.strftime("%H:%M:%S")} in last 10 minutes:'
+        f'Repositories with pushes in last 60s for batch at: {time.strftime("%H:%M:%S")} in last 10 minutes:'
     )
     plt.savefig('/streaming/webapp/static/images/recents.png')
     plt.clf()
