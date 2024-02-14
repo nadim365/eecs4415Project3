@@ -1,3 +1,4 @@
+## This project course is complete now and archived for documentation purposes only
 # EECS4415-Big Data Systems: Project 3 (30%)
 
 **Title:** Real-Time Streaming Analytics with Apache Spark and Python   
